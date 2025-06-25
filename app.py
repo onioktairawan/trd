@@ -171,11 +171,11 @@ def index():
         result = request.form['result']
         note = request.form['note']
 
-        pip_value = 10
+        pip_value = 100 * lot  # XAUUSD pip value
         if result == 'TP':
-            pnl = (tp - open_price) * lot * pip_value
+            pnl = (tp - open_price) * pip_value
         else:
-            pnl = (open_price - sl) * lot * pip_value * -1
+            pnl = (open_price - sl) * pip_value * -1
 
         equity_after = equity + pnl
 
@@ -233,11 +233,11 @@ def edit(id):
         result = request.form['result']
         note = request.form['note']
 
-        pip_value = 10
+        pip_value = 100 * lot
         if result == 'TP':
-            pnl = (tp - open_price) * lot * pip_value
+            pnl = (tp - open_price) * pip_value
         else:
-            pnl = (open_price - sl) * lot * pip_value * -1
+            pnl = (open_price - sl) * pip_value * -1
 
         equity_after = equity + pnl
 
