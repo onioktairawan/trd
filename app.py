@@ -63,7 +63,7 @@ HTML_TEMPLATE = """
     <div class=\"d-flex justify-content-end\">
       <a href=\"/logout\" class=\"btn btn-outline-danger mb-3\">Logout ({{ session['username'] }})</a>
     </div>
-    <h2 class=\"text-center mb-4\">📒 Jurnal Trading Harian</h2>
+    <h2 class=\"text-center mb-4\">Jurnal Trading XAUUSD</h2>
     {% if edit_data %}
     <form method=\"POST\" action=\"/edit/{{ edit_data._id }}\" class=\"mb-5\">
     {% else %}
