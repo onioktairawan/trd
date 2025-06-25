@@ -33,6 +33,20 @@ HTML_TEMPLATE = """
     body.dark { background-color: #121212 !important; color: #f0f0f0; }
     .dark .table, .dark .form-control, .dark .btn { background-color: #333 !important; color: #fff; border-color: #555; }
     .dark .card { background-color: #1e1e1e; border-color: #444; }
+    .dark .card-title, .dark .card-text { color: #f0f0f0 !important; }
+    .dark .dataTables_wrapper,
+    .dark .dataTables_filter input,
+    .dark .dataTables_length select,
+    .dark .paginate_button,
+    .dark .table-striped > tbody > tr:nth-of-type(odd) {
+      background-color: #1e1e1e !important;
+      color: #f0f0f0 !important;
+      border-color: #444 !important;
+    }
+    .dark .paginate_button.current {
+      background-color: #444 !important;
+      color: #fff !important;
+    }
     .result-tp { color: limegreen; font-weight: bold; }
     .result-sl { color: red; font-weight: bold; }
     .theme-toggle { position: fixed; top: 1rem; right: 1rem; cursor: pointer; }
@@ -181,12 +195,19 @@ HTML_TEMPLATE = """
     });
     function toggleTheme() {
       const body = document.getElementById('body');
-      body.classList.toggle('dark');
-      localStorage.setItem('theme', body.classList.contains('dark') ? 'dark' : 'light');
+      const dark = body.classList.toggle('dark');
+      localStorage.setItem('theme', dark ? 'dark' : 'light');
+      document.querySelectorAll('.dataTables_wrapper').forEach(e => {
+        if (dark) e.classList.add('dark');
+        else e.classList.remove('dark');
+      });
     }
     window.onload = () => {
       if (localStorage.getItem('theme') === 'dark') {
         document.getElementById('body').classList.add('dark');
+        setTimeout(() => {
+          document.querySelectorAll('.dataTables_wrapper').forEach(e => e.classList.add('dark'));
+        }, 100);
       }
     }
   </script>
