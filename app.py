@@ -14,9 +14,11 @@ app.secret_key = 'supersecretkey'
 client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
 collection = db[COLLECTION_NAME]
+equity_collection = db['equity']
 users_collection = db['users']
 
 register_routes(app, users_collection)
+
 HTML_TEMPLATE = """
 <!doctype html>
 <html lang=\"en\">
@@ -32,81 +34,57 @@ HTML_TEMPLATE = """
     .dark .table, .dark .form-control, .dark .btn { background-color: #333 !important; color: #fff; border-color: #555; }
     .dark .card { background-color: #1e1e1e; border-color: #444; }
     .dark .card-title, .dark .card-text { color: #f0f0f0 !important; }
-    .dark .dataTables_wrapper,
-    .dark .dataTables_filter input,
-    .dark .dataTables_length select,
-    .dark .paginate_button,
-    .dark .table-striped > tbody > tr:nth-of-type(odd) {
-      background-color: #1e1e1e !important;
-      color: #f0f0f0 !important;
-      border-color: #444 !important;
-    }
-    .dark .paginate_button.current {
-      background-color: #444 !important;
-      color: #fff !important;
-    }
     .result-tp { color: limegreen; font-weight: bold; }
     .result-sl { color: red; font-weight: bold; }
     .theme-toggle { position: fixed; top: 1rem; right: 1rem; cursor: pointer; }
-    @media (max-width: 768px) {
-      .table-responsive { overflow-x: auto; }
-    }
   </style>
 </head>
 <body class=\"bg-light p-4\" id=\"body\">
   <div class=\"theme-toggle\">
-    <button class=\"btn btn-outline-secondary\" onclick=\"toggleTheme()\">🌙/☀️</button>
+    <button class=\"btn btn-outline-secondary\" onclick=\"toggleTheme()\">🌙☀️</button>
   </div>
   <div class=\"container\">
     <div class=\"d-flex justify-content-end\">
       <a href=\"/logout\" class=\"btn btn-outline-danger mb-3\">Logout ({{ session['username'] }})</a>
     </div>
     <h2 class=\"text-center mb-4\">Jurnal Trading XAUUSD</h2>
-    {% if edit_data %}
-    <form method=\"POST\" action=\"/edit/{{ edit_data._id }}\" class=\"mb-5\">
-    {% else %}
     <form method=\"POST\" class=\"mb-5\" onsubmit=\"return confirm('Yakin data sudah benar?')\">
-    {% endif %}
       <div class=\"row g-3\">
         <div class=\"col-md-4\">
-          <label>Equity Awal ($)</label>
-          <input type=\"number\" step=\"0.01\" name=\"equity\" class=\"form-control\" value=\"{{ edit_data.equity if edit_data else '' }}\" required>
-        </div>
-        <div class=\"col-md-4\">
           <label>Lot Size</label>
-          <input type=\"number\" step=\"0.01\" min=\"0.01\" name=\"lot\" class=\"form-control\" value=\"{{ edit_data.lot if edit_data else '' }}\" required>
+          <input type=\"number\" step=\"0.01\" min=\"0.01\" name=\"lot\" class=\"form-control\" required>
         </div>
         <div class=\"col-md-4\">
           <label>Open Price</label>
-          <input type=\"number\" step=\"0.001\" name=\"open_price\" class=\"form-control\" value=\"{{ edit_data.open_price if edit_data else '' }}\" required>
+          <input type=\"number\" step=\"0.001\" name=\"open_price\" class=\"form-control\" required>
         </div>
         <div class=\"col-md-4\">
           <label>Stop Loss</label>
-          <input type=\"number\" step=\"0.001\" name=\"sl\" class=\"form-control\" value=\"{{ edit_data.sl if edit_data else '' }}\" required>
+          <input type=\"number\" step=\"0.001\" name=\"sl\" class=\"form-control\" required>
         </div>
         <div class=\"col-md-4\">
           <label>Take Profit</label>
-          <input type=\"number\" step=\"0.001\" name=\"tp\" class=\"form-control\" value=\"{{ edit_data.tp if edit_data else '' }}\" required>
+          <input type=\"number\" step=\"0.001\" name=\"tp\" class=\"form-control\" required>
         </div>
         <div class=\"col-md-4\">
           <label>Hasil</label>
           <select name=\"result\" class=\"form-control\" required>
-            <option value=\"TP\" {% if edit_data and edit_data.result == 'TP' %}selected{% endif %}>✔️ TP</option>
-            <option value=\"SL\" {% if edit_data and edit_data.result == 'SL' %}selected{% endif %}>❌ SL</option>
+            <option value=\"TP\">✔️ TP</option>
+            <option value=\"SL\">❌ SL</option>
           </select>
         </div>
-        <div class=\"col-md-12\">
+        <div class=\"col-md-4\">
           <label>Keterangan</label>
           <select name=\"note\" class=\"form-control\">
-            <option value=\"Buy\" {% if edit_data and edit_data.note == 'Buy' %}selected{% endif %}>Buy</option>
-            <option value=\"Sell\" {% if edit_data and edit_data.note == 'Sell' %}selected{% endif %}>Sell</option>
+            <option value=\"Buy\">Buy</option>
+            <option value=\"Sell\">Sell</option>
           </select>
         </div>
       </div>
-      <button type=\"submit\" class=\"btn btn-primary mt-4\">{{ 'Update' if edit_data else 'Simpan' }}</button>
+      <button type=\"submit\" class=\"btn btn-primary mt-4\">Simpan</button>
       <a href=\"/export\" class=\"btn btn-success mt-4 ms-2\">Export CSV</a>
+      <a href=\"/set-equity\" class=\"btn btn-secondary mt-4 ms-2\">Atur Equity Awal</a>
     </form>
-
     <div class=\"row mb-4\">
       <div class=\"col-md-3\">
         <div class=\"card text-center\">
@@ -140,16 +118,21 @@ HTML_TEMPLATE = """
           </div>
         </div>
       </div>
+      <div class=\"col-md-3 mt-3\">
+        <div class=\"card text-center\">
+          <div class=\"card-body\">
+            <h5 class=\"card-title\">PnL (Growth)</h5>
+            <p class=\"card-text fs-4\">${{ '%.2f'|format(stats.growth) }}</p>
+          </div>
+        </div>
+      </div>
     </div>
-
     <div class=\"table-responsive\">
       <table id=\"tradeTable\" class=\"table table-bordered table-striped shadow-sm\">
         <thead>
           <tr>
-            <th>Action</th>
             <th>No</th>
             <th>Tanggal & Waktu</th>
-            <th>Equity Awal</th>
             <th>Lot</th>
             <th>Open Price</th>
             <th>SL</th>
@@ -163,20 +146,15 @@ HTML_TEMPLATE = """
         <tbody>
           {% for trade in trades %}
           <tr>
-            <td>
-              <a href=\"/edit/{{ trade._id }}\" class=\"btn btn-sm btn-warning\"><i class=\"bi bi-pencil-square\"></i></a>
-              <a href=\"/delete/{{ trade._id }}\" class=\"btn btn-sm btn-danger\" onclick=\"return confirm('Yakin mau hapus data ini?')\"><i class=\"bi bi-trash\"></i></a>
-            </td>
             <td>{{ loop.index }}</td>
             <td>{{ trade.date }}</td>
-            <td>${{ '%.2f'|format(trade.equity) }}</td>
             <td>{{ trade.lot }}</td>
             <td>{{ trade.open_price }}</td>
             <td>{{ trade.sl }}</td>
             <td>{{ trade.tp }}</td>
             <td class=\"{{ 'result-tp' if trade.result == 'TP' else 'result-sl' }}\">{{ trade.result }}</td>
             <td>{{ trade.note }}</td>
-            <td>${{ '%.2f'|format(trade.equity_after - trade.equity) }}</td>
+            <td>${{ '%.2f'|format(trade.profit) }}</td>
             <td>${{ '%.2f'|format(trade.equity_after) }}</td>
           </tr>
           {% endfor %}
@@ -195,152 +173,129 @@ HTML_TEMPLATE = """
       const body = document.getElementById('body');
       const dark = body.classList.toggle('dark');
       localStorage.setItem('theme', dark ? 'dark' : 'light');
-      document.querySelectorAll('.dataTables_wrapper').forEach(e => {
-        if (dark) e.classList.add('dark');
-        else e.classList.remove('dark');
-      });
     }
     window.onload = () => {
       if (localStorage.getItem('theme') === 'dark') {
         document.getElementById('body').classList.add('dark');
-        setTimeout(() => {
-          document.querySelectorAll('.dataTables_wrapper').forEach(e => e.classList.add('dark'));
-        }, 100);
       }
     }
   </script>
 </body>
 </html>
 """
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
     check = protect()
     if check: return check
 
     if request.method == 'POST':
-        equity = float(request.form['equity'])
         lot = float(request.form['lot'])
         open_price = float(request.form['open_price'])
         sl = float(request.form['sl'])
         tp = float(request.form['tp'])
         result = request.form['result']
         note = request.form['note']
+        pip_value = 100 * lot
 
-        pip_value = 100 * lot  # XAUUSD pip value
+        last_equity_data = equity_collection.find_one(sort=[("_id", -1)])
+        if not last_equity_data:
+            return "Equity awal belum diatur. Silakan atur dulu di halaman 'Atur Equity Awal'."
 
-        # ✅ Perhitungan sesuai arah (Buy/Sell)
+        last_trade = collection.find_one(sort=[("date", -1)])
+        current_equity = last_trade['equity_after'] if last_trade else last_equity_data['amount']
+
         if note == 'Buy':
-            pnl = (tp - open_price) * pip_value if result == 'TP' else (sl - open_price) * pip_value
-        else:  # Sell
-            pnl = (open_price - tp) * pip_value if result == 'TP' else (sl - open_price) * pip_value * -1
+            profit = (tp - open_price) * pip_value if result == 'TP' else (sl - open_price) * pip_value
+        else:
+            profit = (open_price - tp) * pip_value if result == 'TP' else (sl - open_price) * pip_value * -1
 
-        equity_after = equity + pnl
+        equity_after = current_equity + profit
 
         trade = {
             "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            "equity": equity,
             "lot": lot,
             "open_price": open_price,
             "sl": sl,
             "tp": tp,
             "result": result,
             "note": note,
+            "profit": profit,
             "equity_after": equity_after
         }
-
         collection.insert_one(trade)
         return redirect('/')
 
-    trades = list(collection.find().sort("date", -1))
+    trades = list(collection.find().sort("date", 1))
     tp_count = sum(1 for t in trades if t['result'] == 'TP')
     sl_count = sum(1 for t in trades if t['result'] == 'SL')
     total = len(trades)
-    start_equity = trades[-1]['equity'] if trades else 0
-    end_equity = trades[0]['equity_after'] if trades else 0
     winrate = round((tp_count / total) * 100, 2) if total else 0
-
+    equity_start = equity_collection.find_one(sort=[("_id", -1)])
+    start = equity_start['amount'] if equity_start else 0
+    end = trades[-1]['equity_after'] if trades else start
     stats = {
         "tp": tp_count,
         "sl": sl_count,
         "total": total,
         "winrate": winrate,
-        "growth": end_equity - start_equity
+        "growth": end - start
     }
+    return render_template_string(HTML_TEMPLATE, trades=trades, stats=stats)
 
-    return render_template_string(HTML_TEMPLATE, trades=trades, stats=stats, edit_data=None)
-
-@app.route('/delete/<id>')
-def delete(id):
-    check = protect()
-    if check: return check
-    collection.delete_one({"_id": ObjectId(id)})
-    return redirect('/')
-
-@app.route('/edit/<id>', methods=['GET', 'POST'])
-def edit(id):
+@app.route('/set-equity', methods=['GET', 'POST'])
+def set_equity():
     check = protect()
     if check: return check
 
     if request.method == 'POST':
-        equity = float(request.form['equity'])
-        lot = float(request.form['lot'])
-        open_price = float(request.form['open_price'])
-        sl = float(request.form['sl'])
-        tp = float(request.form['tp'])
-        result = request.form['result']
-        note = request.form['note']
+        amount = float(request.form['amount'])
+        equity_collection.insert_one({
+            "amount": amount,
+            "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+        recalculate_equity(amount)
+        return redirect('/')
+    return '''
+        <form method="POST">
+            <label>Masukkan Equity Awal ($):</label>
+            <input type="number" step="0.01" name="amount" required>
+            <button type="submit">Simpan</button>
+        </form>
+    '''
 
+def recalculate_equity(initial_equity):
+    trades = list(collection.find().sort("date", 1))
+    equity = initial_equity
+    for trade in trades:
+        lot = trade['lot']
+        open_price = trade['open_price']
+        sl = trade['sl']
+        tp = trade['tp']
+        result = trade['result']
+        note = trade['note']
         pip_value = 100 * lot
 
-        # ✅ Perhitungan sesuai arah (Buy/Sell)
         if note == 'Buy':
-            pnl = (tp - open_price) * pip_value if result == 'TP' else (sl - open_price) * pip_value
+            profit = (tp - open_price) * pip_value if result == 'TP' else (sl - open_price) * pip_value
         else:
-            pnl = (open_price - tp) * pip_value if result == 'TP' else (sl - open_price) * pip_value * -1
+            profit = (open_price - tp) * pip_value if result == 'TP' else (sl - open_price) * pip_value * -1
 
-        equity_after = equity + pnl
-
-        collection.update_one({"_id": ObjectId(id)}, {"$set": {
-            "equity": equity,
-            "lot": lot,
-            "open_price": open_price,
-            "sl": sl,
-            "tp": tp,
-            "result": result,
-            "note": note,
-            "equity_after": equity_after
+        equity += profit
+        collection.update_one({"_id": trade['_id']}, {"$set": {
+            "profit": profit,
+            "equity_after": equity
         }})
-        return redirect('/')
-
-    trade = collection.find_one({"_id": ObjectId(id)})
-    trades = list(collection.find().sort("date", -1))
-    tp_count = sum(1 for t in trades if t['result'] == 'TP')
-    sl_count = sum(1 for t in trades if t['result'] == 'SL')
-    total = len(trades)
-    start_equity = trades[-1]['equity'] if trades else 0
-    end_equity = trades[0]['equity_after'] if trades else 0
-    winrate = round((tp_count / total) * 100, 2) if total else 0
-    stats = {
-        "tp": tp_count,
-        "sl": sl_count,
-        "total": total,
-        "winrate": winrate,
-        "growth": end_equity - start_equity
-    }
-    return render_template_string(HTML_TEMPLATE, trades=trades, stats=stats, edit_data=trade)
 
 @app.route('/export')
 def export():
     check = protect()
     if check: return check
-
-    trades = list(collection.find().sort("date", -1))
+    trades = list(collection.find().sort("date", 1))
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Tanggal', 'Equity', 'Lot', 'Open Price', 'SL', 'TP', 'Hasil', 'Keterangan', 'Equity After'])
+    writer.writerow(['Tanggal', 'Lot', 'Open Price', 'SL', 'TP', 'Hasil', 'Keterangan', 'Profit', 'Equity After'])
     for t in trades:
-        writer.writerow([t['date'], t['equity'], t['lot'], t['open_price'], t['sl'], t['tp'], t['result'], t['note'], t['equity_after']])
+        writer.writerow([t['date'], t['lot'], t['open_price'], t['sl'], t['tp'], t['result'], t['note'], t['profit'], t['equity_after']])
     output.seek(0)
     return send_file(io.BytesIO(output.read().encode()), mimetype='text/csv', as_attachment=True, download_name='jurnal_trading.csv')
 
