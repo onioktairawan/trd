@@ -17,6 +17,7 @@ collection = db[COLLECTION_NAME]
 users_collection = db['users']
 
 register_routes(app, users_collection)
+
 HTML_TEMPLATE = """
 <!doctype html>
 <html lang=\"en\">
@@ -55,7 +56,7 @@ HTML_TEMPLATE = """
 </head>
 <body class=\"bg-light p-4\" id=\"body\">
   <div class=\"theme-toggle\">
-    <button class=\"btn btn-outline-secondary\" onclick=\"toggleTheme()\">🌙☀️</button>
+    <button class=\"btn btn-outline-secondary\" onclick=\"toggleTheme()\">🌙/☀️</button>
   </div>
   <div class=\"container\">
     <div class=\"d-flex justify-content-end\">
