@@ -1,24 +1,4 @@
-# app.py
-from flask import Flask, request, redirect, render_template_string, send_file, session, url_for
-from pymongo import MongoClient
-from bson.objectid import ObjectId
-from datetime import datetime
-from config import MONGO_URI, DB_NAME, COLLECTION_NAME, SECRET_KEY
-from login_system import register_routes, protect
-import csv
-import io
-
-app = Flask(__name__)
-app.secret_key = SECRET_KEY
-
-# Setup MongoDB
-client = MongoClient(MONGO_URI)
-db = client[DB_NAME]
-collection = db[COLLECTION_NAME]
-users_collection = db['users']
-
-register_routes(app, users_collection)
-
+#app.py
 from flask import Flask, request, redirect, render_template_string, send_file, session, url_for
 from pymongo import MongoClient
 from bson.objectid import ObjectId
