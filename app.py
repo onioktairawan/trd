@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, request, redirect, render_template_string, send_file, session, url_for
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -18,7 +17,6 @@ collection = db[COLLECTION_NAME]
 users_collection = db['users']
 
 register_routes(app, users_collection)
-
 HTML_TEMPLATE = """
 <!doctype html>
 <html lang=\"en\">
@@ -230,10 +228,12 @@ def index():
         note = request.form['note']
 
         pip_value = 100 * lot  # XAUUSD pip value
-        if result == 'TP':
-            pnl = (tp - open_price) * pip_value
-        else:
-            pnl = (open_price - sl) * pip_value * -1
+
+        # ✅ Perhitungan sesuai arah (Buy/Sell)
+        if note == 'Buy':
+            pnl = (tp - open_price) * pip_value if result == 'TP' else (sl - open_price) * pip_value
+        else:  # Sell
+            pnl = (open_price - tp) * pip_value if result == 'TP' else (sl - open_price) * pip_value * -1
 
         equity_after = equity + pnl
 
@@ -292,10 +292,12 @@ def edit(id):
         note = request.form['note']
 
         pip_value = 100 * lot
-        if result == 'TP':
-            pnl = (tp - open_price) * pip_value
+
+        # ✅ Perhitungan sesuai arah (Buy/Sell)
+        if note == 'Buy':
+            pnl = (tp - open_price) * pip_value if result == 'TP' else (sl - open_price) * pip_value
         else:
-            pnl = (open_price - sl) * pip_value * -1
+            pnl = (open_price - tp) * pip_value if result == 'TP' else (sl - open_price) * pip_value * -1
 
         equity_after = equity + pnl
 
