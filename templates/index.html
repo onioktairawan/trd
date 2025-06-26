@@ -143,8 +143,8 @@
             <td>{{ trade.tp }}</td>
             <td class="{{ 'result-tp' if trade.result == 'TP' else 'result-sl' }}">{{ trade.result }}</td>
             <td>{{ trade.note }}</td>
-            <td>${{ '%.2f'|format(trade.profit) }}</td>
-            <td>${{ '%.2f'|format(trade.equity_after) }}</td>
+           <td>${{ '%.2f'|format(trade.profit | default(0)) }}</td>
+           <td>${{ '%.2f'|format(trade.equity_after | default(0)) }}</td>
           </tr>
           {% endfor %}
         </tbody>
