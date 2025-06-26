@@ -166,8 +166,8 @@ DASHBOARD_TEMPLATE = """{% extends LAYOUT_TEMPLATE %}{% block content %}
       labels: {{ trades|map(attribute='date')|list|tojson }},
       datasets: [{
         label: 'Profit/Loss',
-        data: {{ trades|map(lambda t: t['equity_after'] - t['equity'])|list|tojson }},
-        backgroundColor: {{ trades|map(lambda t: 'green' if t['result']=='TP' else 'red')|list|tojson }}
+        data: {{ trades|map(attribute='profit')|list|tojson }},
+        backgroundColor: {{ trades|map(attribute='color')|list|tojson }}
       }]
     },
     options: {
@@ -207,11 +207,16 @@ def dashboard():
         except:
             trades = []
 
+    # Tambahkan 'profit' dan 'color' ke setiap trade
+    for t in trades:
+        t['profit'] = t['equity_after'] - t['equity']
+        t['color'] = 'green' if t['result'] == 'TP' else 'red'
+
     tp = sum(1 for t in trades if t['result'] == 'TP')
     sl = sum(1 for t in trades if t['result'] == 'SL')
     total = len(trades)
     winrate = round((tp / total) * 100, 2) if total else 0
-    profit_total = sum(t['equity_after'] - t['equity'] for t in trades)
+    profit_total = sum(t['profit'] for t in trades)
 
     stats = {
         "tp": tp,
