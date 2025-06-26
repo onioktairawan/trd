@@ -1,3 +1,4 @@
+# app.py
 from flask import Flask, request, redirect, render_template_string, send_file, session, url_for
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -229,12 +230,10 @@ def index():
         note = request.form['note']
 
         pip_value = 100 * lot  # XAUUSD pip value
-
-        # ✅ Perhitungan sesuai arah (Buy/Sell)
-        if note == 'Buy':
-            pnl = (tp - open_price) * pip_value if result == 'TP' else (sl - open_price) * pip_value
-        else:  # Sell
-            pnl = (open_price - tp) * pip_value if result == 'TP' else (sl - open_price) * pip_value * -1
+        if result == 'TP':
+            pnl = (tp - open_price) * pip_value
+        else:
+            pnl = (open_price - sl) * pip_value * -1
 
         equity_after = equity + pnl
 
@@ -293,12 +292,10 @@ def edit(id):
         note = request.form['note']
 
         pip_value = 100 * lot
-
-        # ✅ Perhitungan sesuai arah (Buy/Sell)
-        if note == 'Buy':
-            pnl = (tp - open_price) * pip_value if result == 'TP' else (sl - open_price) * pip_value
+        if result == 'TP':
+            pnl = (tp - open_price) * pip_value
         else:
-            pnl = (open_price - tp) * pip_value if result == 'TP' else (sl - open_price) * pip_value * -1
+            pnl = (open_price - sl) * pip_value * -1
 
         equity_after = equity + pnl
 
@@ -347,3 +344,5 @@ def export():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
+ini dia kode app.py lengkap nya
